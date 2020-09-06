@@ -18,7 +18,7 @@ the library (excepting the contents of :mod:`picamera.array`)::
 PiCamera
 ========
 
-.. autoclass:: PiCamera
+.. autoclass:: PiCamera(\*, camera_num=0, stereo_mode='none', stereo_decimate=False, resolution=None, framerate=None, sensor_mode=0, led_pin=None, clock_mode='reset', framerate_range=None, isp_blocks=None)
 
 
 PiVideoFrameType
@@ -43,3 +43,9 @@ PiFramerateRange
 ================
 
 .. autoclass:: PiFramerateRange(low, high)
+
+
+PiSensorMode
+============
+
+.. autoclass:: PiSensorMode(resolution, framerates, video, still, full_fov)

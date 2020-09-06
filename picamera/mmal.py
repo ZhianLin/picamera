@@ -66,7 +66,10 @@ def MMAL_FOURCC(s):
     return sum(ord(c) << (i * 8) for (i, c) in enumerate(s))
 
 def FOURCC_str(n):
-    return ''.join(chr(n >> i & 0xFF) for i in range(0, 32, 8))
+    if n == 0:
+        return '\\0'
+    else:
+        return ''.join(chr(n >> i & 0xFF) for i in range(0, 32, 8))
 
 MMAL_MAGIC = MMAL_FOURCC('mmal')
 
@@ -617,7 +620,8 @@ class MMAL_PARAMETER_LOGGING_T(ct.Structure):
     MMAL_PARAMETER_CAMERA_RX_TIMING,
     MMAL_PARAMETER_DPF_CONFIG,
     MMAL_PARAMETER_JPEG_RESTART_INTERVAL,
-) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 81)
+    MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE,
+) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 82)
 
 class MMAL_PARAMETER_THUMBNAIL_CONFIG_T(ct.Structure):
     _fields_ = [

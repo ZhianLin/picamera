@@ -351,6 +351,10 @@ def test_preview_fullscreen(camera, previewing):
     if previewing:
         boolean_attr(camera.preview, 'fullscreen')
 
+def test_preview_anamorphic(camera, previewing):
+    if previewing:
+        boolean_attr(camera.preview, 'anamorphic')
+
 def test_preview_window(camera, previewing):
     if previewing:
         camera.preview.window = (0, 0, 320, 240)
@@ -424,6 +428,29 @@ def test_sensor_mode(camera, previewing):
             camera.sensor_mode = 10
     finally:
         camera.sensor_mode = save_mode
+
+def test_isp_blocks(camera, previewing):
+    save_blocks = camera.isp_blocks
+    try:
+        all_blocks = set(camera.ISP_BLOCKS.keys())
+        camera.isp_blocks == all_blocks
+        assert camera.isp_blocks == all_blocks
+        camera.isp_blocks -= {'white-balance'}
+        assert camera.isp_blocks == all_blocks - {'white-balance'}
+        camera.isp_blocks |= {'white-balance'}
+        assert camera.isp_blocks == all_blocks
+    finally:
+        camera.isp_blocks = save_blocks
+
+def test_colorspace(camera, previewing):
+    save_colorspace = camera.colorspace
+    try:
+        camera.colorspace = 'jfif'
+        assert camera.colorspace == 'jfif'
+        camera.colorspace = 'bt709'
+        assert camera.colorspace == 'bt709'
+    finally:
+        camera.colorspace = save_colorspace
 
 def test_framerate_delta(camera, previewing):
     for num in range(-10, 11):
@@ -535,4 +562,3 @@ def test_resolution(camera, previewing):
             camera.resolution = (15, 15)
     finally:
         camera.resolution = save_resolution
-

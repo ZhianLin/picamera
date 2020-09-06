@@ -574,6 +574,68 @@ This should simply be re-written as::
             print('Array shape:', array.shape)
 
 
+Positional args for PiCamera
+----------------------------
+
+The :class:`PiCamera` class was adjusted in 1.14 to expect keyword arguments on
+construction. The following used to be accepted (although it was still rather
+bad practice)::
+
+    import picamera
+
+    camera = picamera.PiCamera(0, 'none', False, '720p')
+
+This should now be re-written as::
+
+    import picamera
+
+    camera = picamera.PiCamera(camera_num=0, stereo_mode='none',
+                               stereo_decimate=False, resolution='720p')
+
+Although if you only wanted to set ``resolution`` you could simply write this
+as::
+
+    import picamera
+
+    camera = picamera.PiCamera(resolution='720p')
+
+
+Color module
+------------
+
+The :mod:`picamera.color` module has now been split off into the `colorzero`_
+library and as such is deprecated in its entirety. The `colorzero`_ library
+contains everything that the color module used, along with a few enhancements
+and several bug fixes and as such the transition is expected to be trivial.
+Look for any imports of the :class:`~picamera.color.Color` class::
+
+    from picamera import Color
+
+    c = Color('green')
+
+Replace these with references to :class:`colorzero.Color` instead::
+
+    from colorzero import Color
+
+    c = Color('green')
+
+Alternatively, if the :class:`~picamera.color.Color` class is being used
+directly from picamera itself::
+
+    import picamera
+
+    camera = picamera.PiCamera()
+    c = picamera.Color('red')
+
+In this case add an import for colorzero, and reference the class from there::
+
+    import picamera
+    import colorzero
+
+    camera = picamera.PiCamera()
+    c = colorzero.Color('red')
+
+
 .. _semantic versioning: http://semver.org/
 .. _PEP-8: http://legacy.python.org/dev/peps/pep-0008/
-
+.. _colorzero: https://colorzero.readthedocs.io/

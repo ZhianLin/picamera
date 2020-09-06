@@ -86,6 +86,7 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG:    mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_CAMERA_INFO:                    None, # adjusted by MMALCameraInfo.info_rev
     mmal.MMAL_PARAMETER_CAMERA_INTERFACE:               mmal.MMAL_PARAMETER_CAMERA_INTERFACE_T,
+    mmal.MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE:      mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_CAMERA_MIN_ISO:                 mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_CAMERA_NUM:                     mmal.MMAL_PARAMETER_INT32_T,
     mmal.MMAL_PARAMETER_CAMERA_RX_CONFIG:               mmal.MMAL_PARAMETER_CAMERA_RX_CONFIG_T,
@@ -317,8 +318,64 @@ class PiFramerateRange(namedtuple('PiFramerateRange', ('low', 'high'))):
 
     __slots__ = () # workaround python issue #24931
 
+    def __new__(cls, low, high):
+        return super(PiFramerateRange, cls).__new__(cls, to_fraction(low),
+                                                    to_fraction(high))
+
     def __str__(self):
         return '%s..%s' % (self.low, self.high)
+
+
+class PiSensorMode(namedtuple('PiSensorMode', ('resolution', 'framerates',
+                                               'video', 'still', 'full_fov'))):
+    """
+    This class is a :func:`~collections.namedtuple` derivative used to store
+    the attributes describing a camera sensor mode.
+
+    .. attribute:: resolution
+
+        A :class:`PiResolution` specifying the size of frames output by the
+        camera in this mode.
+
+    .. attribute:: framerates
+
+        A :class:`PiFramerateRange` specifying the minimum and maximum
+        framerates supported by this sensor mode. Typically the low value is
+        exclusive and high value inclusive.
+
+    .. attribute:: video
+
+        A :class:`bool` indicating whether or not the mode is capable of
+        recording video. Currently this is always ``True``.
+
+    .. attribute:: still
+
+        A :class:`bool` indicating whether the mode can be used for still
+        captures (cases where a capture method is called with
+        ``use_video_port`` set to ``False``).
+
+    .. attribute:: full_fov
+
+        A :class:`bool` indicating whether the full width of the sensor
+        area is used to capture frames. This can be ``True`` even when the
+        resolution is less than the camera's maximum resolution due to binning
+        and skipping. See :ref:`camera_modes` for a diagram of the available
+        fields of view.
+    """
+
+    __slots__ = () # workaround python issue #24931
+
+    def __new__(cls, resolution, framerates, video=True, still=False,
+                full_fov=True):
+        return super(PiSensorMode, cls).__new__(
+            cls,
+            resolution
+                if isinstance(resolution, PiResolution) else
+                to_resolution(resolution),
+            framerates
+                if isinstance(framerates, PiFramerateRange) else
+                PiFramerateRange(*framerates),
+            video, still, full_fov)
 
 
 def open_stream(stream, output=True, buffering=65536):
@@ -462,8 +519,8 @@ def buffer_bytes(buf):
     The object can be multi-dimensional or include items larger than byte-size.
     """
     if not isinstance(buf, memoryview):
-        m = memoryview(buf)
-    return m.itemsize * reduce(mul, m.shape)
+        buf = memoryview(buf)
+    return buf.itemsize * reduce(mul, buf.shape)
 
 
 def debug_pipeline(port):
@@ -528,7 +585,7 @@ def print_pipeline(port):
     Prints a human readable representation of the pipeline feeding the
     specified :class:`MMALVideoPort` *port*.
     """
-    rows = [[], [], [], [], []]
+    rows = [[], [], [], [], [], []]
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
         if isinstance(obj, (MMALBaseComponent, MMALPythonBaseComponent)):
@@ -550,11 +607,14 @@ def print_pipeline(port):
             rows[3].append('%dbps' % (obj._port[0].format[0].bitrate,))
             if under_comp:
                 rows[4].append('frame')
-                under_comp = False
             rows[4].append('%dx%d@%sfps' % (
                 obj._port[0].format[0].es[0].video.width,
                 obj._port[0].format[0].es[0].video.height,
                 obj.framerate))
+            if under_comp:
+                rows[5].append('colorspc')
+                under_comp = False
+            rows[5].append(mmal.FOURCC_str(obj._port[0].format[0].es[0].video.color_space))
         elif isinstance(obj, MMALPythonPort):
             rows[0].append('[%d]' % obj._index)
             if under_comp:
@@ -576,17 +636,22 @@ def print_pipeline(port):
                 obj._format[0].es[0].video.width,
                 obj._format[0].es[0].video.height,
                 obj.framerate))
+            if under_comp:
+                rows[5].append('colorspc')
+            rows[5].append('???')
         elif isinstance(obj, (MMALConnection, MMALPythonConnection)):
             rows[0].append('')
             rows[1].append('')
             rows[2].append('-->')
             rows[3].append('')
             rows[4].append('')
+            rows[5].append('')
     if under_comp:
         rows[1].append('encoding')
         rows[2].append('buf')
         rows[3].append('bitrate')
         rows[4].append('frame')
+        rows[5].append('colorspc')
     cols = list(zip(*rows))
     max_lens = [max(len(s) for s in col) + 2 for col in cols]
     rows = [
@@ -1319,10 +1384,13 @@ class MMALVideoPort(MMALPort):
 
     def __repr__(self):
         if self._port is not None:
-            return '<MMALVideoPort "%s": format=MMAL_FOURCC(%r) buffers=%dx%d frames=%s@%sfps>' % (
+            return (
+                '<MMALVideoPort "%s": format=MMAL_FOURCC("%s") buffers=%dx%d '
+                'frames=%s@%sfps colorspace=MMAL_FOURCC("%s")>' % (
                 self.name, mmal.FOURCC_str(self.format),
                 self._port[0].buffer_num, self._port[0].buffer_size,
-                self.framesize, self.framerate)
+                self.framesize, self.framerate,
+                mmal.FOURCC_str(self.colorspace)))
         else:
             return '<MMALVideoPort closed>'
 
@@ -1363,6 +1431,17 @@ class MMALVideoPort(MMALPort):
         video.frame_rate.den = value.denominator
     framerate = property(_get_framerate, _set_framerate, doc="""\
         Retrieves or sets the framerate of the port's video frames in fps.
+
+        After setting this attribute, call :meth:`~MMALPort.commit` to make the
+        changes effective.
+        """)
+
+    def _get_colorspace(self):
+        return self._port[0].format[0].es[0].video.color_space
+    def _set_colorspace(self, value):
+        self._port[0].format[0].es[0].video.color_space = value
+    colorspace = property(_get_colorspace, _set_colorspace, doc="""\
+        Retrieves or sets the color-space of the port's frames.
 
         After setting this attribute, call :meth:`~MMALPort.commit` to make the
         changes effective.

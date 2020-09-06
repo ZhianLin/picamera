@@ -527,8 +527,9 @@ recorded. The components that data passes through are as follows:
 
     - **Resizing**: At this point, the frame is resized to the requested output
       resolution (all prior stages have been performed on "full" frame data
-      at whatever resolution the sensor is configured to produce). See
-      :attr:`~PiCamera.resolution`.
+      at whatever resolution the sensor is configured to produce). Firstly, the
+      zoom is applied (see :attr:`~PiCamera.zoom`) and then the image is resized
+      to the requested resolution (see :attr:`~PiCamera.resolution`).
 
    Some of these steps can be controlled directly (e.g. brightness, noise
    reduction), others can only be influenced (e.g. analog and digital gain),
@@ -653,43 +654,52 @@ Sensor Modes
 The Pi's camera modules have a discrete set of modes that they can use to
 output data to the GPU. On the V1 module these are as follows:
 
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| # | Resolution | Aspect Ratio | Framerates      | Video | Image | FoV     | Binning |
-+===+============+==============+=================+=======+=======+=========+=========+
-| 1 | 1920x1080  | 16:9         | 1 < fps <= 30   | x     |       | Partial | None    |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| 2 | 2592x1944  | 4:3          | 1 < fps <= 15   | x     | x     | Full    | None    |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| 3 | 2592x1944  | 4:3          | 1/6 <= fps <= 1 | x     | x     | Full    | None    |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| 4 | 1296x972   | 4:3          | 1 < fps <= 42   | x     |       | Full    | 2x2     |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| 5 | 1296x730   | 16:9         | 1 < fps <= 49   | x     |       | Full    | 2x2     |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| 6 | 640x480    | 4:3          | 42 < fps <= 60  | x     |       | Full    | 4x4     |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
-| 7 | 640x480    | 4:3          | 60 < fps <= 90  | x     |       | Full    | 4x4     |
-+---+------------+--------------+-----------------+-------+-------+---------+---------+
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| # | Resolution | Aspect Ratio | Framerates      | Video | Image | FoV     | Binning  |
++===+============+==============+=================+=======+=======+=========+==========+
+| 1 | 1920x1080  | 16:9         | 1 < fps <= 30   | x     |       | Partial | None     |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| 2 | 2592x1944  | 4:3          | 1 < fps <= 15   | x     | x     | Full    | None     |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| 3 | 2592x1944  | 4:3          | 1/6 <= fps <= 1 | x     | x     | Full    | None     |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| 4 | 1296x972   | 4:3          | 1 < fps <= 42   | x     |       | Full    | 2x2      |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| 5 | 1296x730   | 16:9         | 1 < fps <= 49   | x     |       | Full    | 2x2      |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| 6 | 640x480    | 4:3          | 42 < fps <= 60  | x     |       | Full    | 4x4 [#]_ |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+| 7 | 640x480    | 4:3          | 60 < fps <= 90  | x     |       | Full    | 4x4      |
++---+------------+--------------+-----------------+-------+-------+---------+----------+
+
+.. [#] In fact, the sensor uses a 2x2 binning in combination with a 2x2 skip to
+    achieve the equivalent of a 4x4 reduction in resolution.
 
 On the V2 module, these are:
 
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| # | Resolution | Aspect Ratio | Framerates        | Video | Image | FoV     | Binning |
-+===+============+==============+===================+=======+=======+=========+=========+
-| 1 | 1920x1080  | 16:9         | 1/10 <= fps <= 30 | x     |       | Partial | None    |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| 2 | 3280x2464  | 4:3          | 1/10 <= fps <= 15 | x     | x     | Full    | None    |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| 3 | 3280x2464  | 4:3          | 1/10 <= fps <= 15 | x     | x     | Full    | None    |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| 4 | 1640x1232  | 4:3          | 1/10 <= fps <= 40 | x     |       | Full    | 2x2     |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| 5 | 1640x922   | 16:9         | 1/10 <= fps <= 40 | x     |       | Full    | 2x2     |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| 6 | 1280x720   | 16:9         | 40 < fps <= 90    | x     |       | Partial | 2x2     |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
-| 7 | 640x480    | 4:3          | 40 < fps <= 90    | x     |       | Partial | 2x2     |
-+---+------------+--------------+-------------------+-------+-------+---------+---------+
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| #      | Resolution | Aspect Ratio | Framerates        | Video | Image | FoV     | Binning |
++========+============+==============+===================+=======+=======+=========+=========+
+| 1      | 1920x1080  | 16:9         | 1/10 <= fps <= 30 | x     |       | Partial | None    |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| 2      | 3280x2464  | 4:3          | 1/10 <= fps <= 15 | x     | x     | Full    | None    |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| 3 [#]_ | 3280x2464  | 4:3          | 1/10 <= fps <= 15 | x     | x     | Full    | None    |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| 4      | 1640x1232  | 4:3          | 1/10 <= fps <= 40 | x     |       | Full    | 2x2     |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| 5      | 1640x922   | 16:9         | 1/10 <= fps <= 40 | x     |       | Full    | 2x2     |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| 6      | 1280x720   | 16:9         | 40 < fps <= 90    | x     |       | Partial | 2x2     |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+| 7      | 640x480    | 4:3          | 40 < fps <= 90    | x     |       | Partial | 2x2     |
++--------+------------+--------------+-------------------+-------+-------+---------+---------+
+
+.. [#] Sensor mode 3 on the V2 module appears to be a duplicate of sensor mode
+    2, but this is deliberate. The sensor modes of the V2 module were designed
+    to mimic the closest equivalent sensor modes of the V1 module. Long
+    exposures on the V1 module required a separate sensor mode; this wasn't
+    required on the V2 module leading to the duplication of mode 2.
 
 .. note::
 
@@ -698,14 +708,6 @@ On the V2 module, these are:
     output directly to the GPU. The GPU's ISP block will resize to any
     requested resolution (within reason). Read on for details of mode
     selection.
-
-.. note::
-
-    Sensor mode 3 on the V2 module appears to be a duplicate of sensor mode 2,
-    but this is deliberate. The sensor modes of the V2 module were designed to
-    mimic the closest equivalent sensor modes of the V1 module. Long exposures
-    on the V1 module required a separate sensor mode; this wasn't required on
-    the V2 module leading to the duplication of mode 2.
 
 Modes with full `field of view`_ (FoV) capture images from the whole area of
 the camera's sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2
@@ -857,12 +859,11 @@ influence the camera's behaviour.
 The Still Port
 --------------
 
-Whenever the still port is used to capture images, it (briefly)
-forces the camera's mode to one of the two supported still modes (see
-:ref:`camera_modes`), meaning that images are captured using the full area of the
-sensor. It also uses a strong noise reduction algorithm on captured images so
-that they appear higher quality.
-.. They "appear" to be higher quality, or they "are" higher quality? This almost makes it seem like the images appear to be a higher quality than they actually are.
+Whenever the still port is used to capture images, it (briefly) forces the
+camera's mode to one of the two supported still modes (see
+:ref:`camera_modes`), meaning that images are captured using the full area of
+the sensor. It also uses a strong noise reduction algorithm on captured images
+so that they appear higher quality.
 
 The still port is used by the various :meth:`~PiCamera.capture` methods when
 their *use_video_port* parameter is ``False`` (which it is by default).
@@ -1025,7 +1026,7 @@ abstraction layers, which necessarily obscure (but hopefully simplify) the
 .. _real-time operating system: https://en.wikipedia.org/wiki/Real-time_operating_system
 .. _system on a chip: https://en.wikipedia.org/wiki/System_on_a_chip
 .. _image signal processor: https://en.wikipedia.org/wiki/Image_processor
-.. _binning: http://www.andor.com/learning-academy/ccd-binning-what-does-binning-mean
+.. _binning: https://andor.oxinst.com/learning/view/article/ccd-binning
 .. _rolling shutter: https://en.wikipedia.org/wiki/Rolling_shutter
 .. _Bayer filter: https://en.wikipedia.org/wiki/Bayer_filter
 .. _Bayer values: https://en.wikipedia.org/wiki/Bayer_filter
